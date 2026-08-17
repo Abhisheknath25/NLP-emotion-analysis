@@ -4,21 +4,17 @@ A beautiful web application powered by Machine Learning and Natural Language Pro
 
 ## Features
 - **Machine Learning**: Uses a Logistic Regression model trained on TF-IDF features with 86.3% accuracy.
-- **Beautiful UI**: Built with HTML, CSS, and vanilla JS, featuring dynamic floating emojis and glassmorphism.
-- **Real-time API**: Powered by a lightweight Flask backend providing predictions instantly.
+- **Beautiful UI**: Built entirely in Python using **Streamlit**, featuring custom dark-mode CSS and emoji breakdowns.
+- **Instant Predictions**: Runs locally in your browser with real-time text analysis.
 
 ## How to run locally
 
 1. Install dependencies:
    ```bash
-   pip install flask pandas scikit-learn numpy joblib nltk
+   pip install streamlit pandas scikit-learn numpy joblib nltk
    ```
-2. (Optional) If you want to retrain the model, run:
+2. Start the Streamlit application:
    ```bash
-   python train_model.py
+   python -m streamlit run app.py
    ```
-3. Start the Flask application:
-   ```bash
-   python app.py
-   ```
-4. Open your browser and go to `http://localhost:5000`
+3. Open your browser and go to `http://localhost:8501`
