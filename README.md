@@ -7,14 +7,6 @@ A beautiful web application powered by Machine Learning and Natural Language Pro
 - **Beautiful UI**: Built entirely in Python using **Streamlit**, featuring custom dark-mode CSS and emoji breakdowns.
 - **Instant Predictions**: Runs locally in your browser with real-time text analysis.
 
-## How to run locally
+## Access the Application
 
-1. Install dependencies:
-   ```bash
-   pip install streamlit pandas scikit-learn numpy joblib nltk
-   ```
-2. Start the Streamlit application:
-   ```bash
-   python -m streamlit run app.py
-   ```
-3. Open your browser and go to: [http://localhost:8501](http://localhost:8501)
+[http://localhost:8501](http://localhost:8501)
