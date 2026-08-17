@@ -1,8 +1,29 @@
+import streamlit as st
 import string
 import joblib
-from flask import Flask, render_template, request, jsonify
+import pandas as pd
+from nltk.corpus import stopwords
+import nltk
 
-# Re-declare text preprocessing functions so that they match exactly what the model expects
+# Streamlit page config must be the first Streamlit command
+st.set_page_config(
+    page_title="Text Emotion Classification",
+    page_icon="✨",
+    layout="centered"
+)
+
+# Function to ensure stopwords are downloaded
+@st.cache_resource
+def get_stopwords():
+    try:
+        return set(stopwords.words('english'))
+    except LookupError:
+        nltk.download('stopwords')
+        return set(stopwords.words('english'))
+
+stop_words = get_stopwords()
+
+# Preprocessing functions
 def remove_punc(txt):
     return txt.translate(str.maketrans('','',string.punctuation))
 
@@ -20,14 +41,6 @@ def remove_emojis(txt):
             new += i
     return new
 
-from nltk.corpus import stopwords
-import nltk
-try:
-    stop_words = set(stopwords.words('english'))
-except LookupError:
-    nltk.download('stopwords')
-    stop_words = set(stopwords.words('english'))
-
 def remove_stopwords(txt):
     words = txt.split()
     cleaned = [i for i in words if not i in stop_words]
@@ -41,22 +54,19 @@ def preprocess(txt):
     txt = remove_stopwords(txt)
     return txt
 
-app = Flask(__name__)
-
 # Load models and mappings
-model = None
-vectorizer = None
-emotions_map = None
+@st.cache_resource
+def load_models():
+    try:
+        model = joblib.load('model.pkl')
+        vectorizer = joblib.load('vectorizer.pkl')
+        emotions_map = joblib.load('emotions_map.pkl')
+        return model, vectorizer, emotions_map
+    except Exception as e:
+        return None, None, None
 
-try:
-    model = joblib.load('model.pkl')
-    vectorizer = joblib.load('vectorizer.pkl')
-    emotions_map = joblib.load('emotions_map.pkl')
-    print("Successfully loaded model and artifacts.")
-except Exception as e:
-    print(f"Error loading models. Did you run train_model.py? Error: {e}")
+model, vectorizer, emotions_map = load_models()
 
-# Emotion mappings to emojis for UI richness
 emotion_emojis = {
     'sadness': '😔',
     'anger': '😠',
@@ -66,47 +76,103 @@ emotion_emojis = {
     'joy': '😊'
 }
 
-@app.route('/')
-def home():
-    return render_template('index.html')
+# Custom CSS for beautiful UI
+st.markdown("""
+<style>
+    .main {
+        background-color: #0f172a;
+        color: #f8fafc;
+    }
+    h1 {
+        background: linear-gradient(to right, #fff, #a5b4fc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-align: center;
+        font-family: 'Inter', sans-serif;
+    }
+    .stTextArea textarea {
+        background-color: rgba(30, 41, 59, 0.7) !important;
+        color: #f8fafc !important;
+        border-radius: 10px !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+    }
+    div[data-testid="stButton"] button {
+        background-color: #6366f1 !important;
+        color: white !important;
+        border-radius: 8px !important;
+        border: none !important;
+        width: 100% !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stButton"] button:hover {
+        background-color: #4f46e5 !important;
+    }
+    .result-container {
+        text-align: center;
+        padding: 2rem;
+        background: rgba(30, 41, 59, 0.7);
+        border-radius: 15px;
+        border: 1px solid rgba(255,255,255,0.1);
+        margin-top: 1rem;
+    }
+    .result-emoji {
+        font-size: 5rem;
+        animation: bounce 2s infinite;
+    }
+    .emotion-title {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+</style>
+""", unsafe_allow_html=True)
 
-@app.route('/predict', methods=['POST'])
-def predict():
-    if not model or not vectorizer or not emotions_map:
-        return jsonify({'error': 'Model is not loaded. Please wait for training to complete.'}), 500
-        
-    data = request.json
-    text = data.get('text', '')
-    
-    if not text.strip():
-        return jsonify({'error': 'Please enter some text.'}), 400
-        
-    # Preprocess text
-    cleaned_text = preprocess(text)
-    if not cleaned_text.strip():
-        # Text became empty after preprocessing (e.g. only stopwords)
-        return jsonify({'error': 'Text is too short or lacks meaningful words after preprocessing.'}), 400
-        
-    # Predict
-    features = vectorizer.transform([cleaned_text])
-    prediction_num = model.predict(features)[0]
-    
-    emotion_name = emotions_map.get(prediction_num, "Unknown")
-    emoji = emotion_emojis.get(emotion_name, '😐')
-    
-    # Get probabilities for all classes
-    probabilities = model.predict_proba(features)[0]
-    confidences = {}
-    for i, prob in enumerate(probabilities):
-        confidences[emotions_map[i]] = round(prob * 100, 2)
-        
-    return jsonify({
-        'emotion': emotion_name,
-        'emoji': emoji,
-        'confidence': confidences[emotion_name],
-        'all_confidences': confidences,
-        'cleaned_text': cleaned_text
-    })
+st.title("✨ Text Emotion Classification")
+st.markdown("<p style='text-align: center; color: #94a3b8;'>Using NLP & Machine Learning to understand feelings</p>", unsafe_allow_html=True)
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+if not model:
+    st.error("Model files not found! Please run the training script or Jupyter Notebook to generate them.")
+    st.stop()
+
+# Input area
+user_input = st.text_area("Type or paste your text here...", height=150)
+
+if st.button("Analyze Emotion"):
+    if user_input.strip() == "":
+        st.warning("Please enter some text to analyze.")
+    else:
+        with st.spinner("Analyzing text..."):
+            cleaned_text = preprocess(user_input)
+            
+            if not cleaned_text.strip():
+                st.error("Text is too short or lacks meaningful words after preprocessing.")
+            else:
+                features = vectorizer.transform([cleaned_text])
+                prediction_num = model.predict(features)[0]
+                emotion_name = emotions_map.get(prediction_num, "Unknown")
+                emoji = emotion_emojis.get(emotion_name, '😐')
+                
+                probabilities = model.predict_proba(features)[0]
+                confidences = {emotions_map[i]: round(prob * 100, 2) for i, prob in enumerate(probabilities)}
+                
+                # Display Result
+                st.markdown(f"""
+                <div class="result-container">
+                    <div class="result-emoji">{emoji}</div>
+                    <div class="emotion-title">{emotion_name.capitalize()}</div>
+                    <p style="color: #94a3b8; font-size: 1.1rem;">Confidence: <strong>{confidences[emotion_name]}%</strong></p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown("### Detailed Breakdown")
+                
+                sorted_emotions = sorted(confidences.items(), key=lambda x: x[1], reverse=True)
+                
+                for em, conf in sorted_emotions:
+                    if em != emotion_name:
+                        st.write(f"**{emotion_emojis.get(em, '😐')} {em.capitalize()}**: {conf}%")
+                        st.progress(int(conf))
