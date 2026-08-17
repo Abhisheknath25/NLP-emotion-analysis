@@ -17,4 +17,4 @@ A beautiful web application powered by Machine Learning and Natural Language Pro
    ```bash
    python -m streamlit run app.py
    ```
-3. Open your browser and go to `http://localhost:8501`
+3. Open your browser and go to: [http://localhost:8501](http://localhost:8501)
